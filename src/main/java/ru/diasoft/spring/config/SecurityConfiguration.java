@@ -1,24 +1,34 @@
 package ru.diasoft.spring.config;
 
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
+import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.NoOpPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import ru.diasoft.spring.filter.JwtRequestFilter;
+import ru.diasoft.spring.util.JwtTokenUtil;
+
 
 @Configuration
 @EnableWebSecurity
-@RequiredArgsConstructor
+@EnableGlobalMethodSecurity(prePostEnabled = true)
 public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
     private static final String ADMIN = "ADMIN";
     private static final String USER = "USER";
 
-    private final UserDetailsService userDetailsService;
+    @Autowired
+    @Lazy
+    private UserDetailsService userDetailsService;
 
     @Override
     protected void configure(AuthenticationManagerBuilder auth) throws Exception {
@@ -27,17 +37,48 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 
     @Override
     protected void configure(HttpSecurity http) throws Exception {
-        http.authorizeRequests()
+        http.csrf().disable();
+        http
+                .addFilterBefore(jwtRequestFilter(), UsernamePasswordAuthenticationFilter.class)
+
+                .authorizeRequests()
+                .antMatchers("/authenticate").permitAll()
                 .antMatchers("/api/v1/authors", "/api/v1/author/*").hasRole(USER)
-                .antMatchers("/api/v1/genres", "/api/v1/genre/*").hasRole(USER)
+                .antMatchers("/api/v1/genres", "/api/v1/genre/*").hasRole(ADMIN)
                 .antMatchers("/api/v1/books", "/api/v1/book/*").hasAnyRole(ADMIN, USER)
                 .antMatchers("/api/v1/book/*/comments", "/api/v1/book/*/comment").hasRole(ADMIN)
-                .and().formLogin();
+
+                .anyRequest().authenticated()
+
+                .and().exceptionHandling().authenticationEntryPoint(jwtAuthenticationEntryPoint())
+                .and().sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS);
     }
 
     @Bean
     public PasswordEncoder getPasswordEncoder() {
         return NoOpPasswordEncoder.getInstance();
+    }
+
+    @Bean
+    @Override
+    public AuthenticationManager authenticationManagerBean() throws Exception {
+        return super.authenticationManagerBean();
+    }
+
+    @Bean
+    public JwtTokenUtil jwtTokenUtil() {
+        return new JwtTokenUtil();
+    }
+
+    @Bean
+    @Lazy
+    public JwtRequestFilter jwtRequestFilter() {
+        return new JwtRequestFilter(userDetailsService, jwtTokenUtil());
+    }
+
+    @Bean
+    public JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint() {
+        return new JwtAuthenticationEntryPoint();
     }
 
 }

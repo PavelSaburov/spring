@@ -18,3 +18,8 @@ spring:
     properties:
       hibernate:
         format_sql: true
+security:
+  enable: true
+
+jwt:
+  secret: javainuse
