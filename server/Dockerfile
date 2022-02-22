@@ -1,4 +1,4 @@
-FROM openjdk:8
-COPY /target/client-*.jar client.jar
-EXPOSE 9080
-ENTRYPOINT ["java", "-jar", "client.jar"]
+FROM openjdk:11
+COPY /target/server-*.jar server.jar
+EXPOSE 8080
+ENTRYPOINT ["java", "-jar", "server.jar"]

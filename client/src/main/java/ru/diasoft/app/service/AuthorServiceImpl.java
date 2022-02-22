@@ -16,7 +16,7 @@ public class AuthorServiceImpl implements AuthorService {
     private final AuthorClient authorClient = Feign.builder()
             .encoder(new JacksonEncoder())
             .decoder(new JacksonDecoder())
-            .target(AuthorClient.class, "http://localhost:8080");
+            .target(AuthorClient.class, "http://server:8080");
 
     @Override
     public List<AuthorDto> findAll() {
